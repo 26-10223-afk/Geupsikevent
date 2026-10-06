@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행사 학번 중복 확인 및 참가 관리</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        @keyframes pulse-success {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        @keyframes shake-fail {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-success {
+            animation: pulse-success 0.4s ease-in-out;
+        }
+        .animate-fail {
+            animation: shake-fail 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Navigation Header -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-id-card text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white leading-tight">행사 참가자 중복 확인</h1>
+                    <p class="text-xs text-slate-400">1~3학년 / 1~10반 / 1~35번 5자리 학번 시스템</p>
+                </div>
+            </div>
+
+            <!-- View Switcher Tabs -->
+            <div class="flex items-center bg-slate-900/80 p-1 rounded-xl border border-slate-700">
+                <button id="btnTabCheckin" onclick="switchTab('checkin')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 text-white transition-all shadow">
+                    <i class="fa-solid fa-user-check mr-1.5"></i>학번 입력
+                </button>
+                <button id="btnTabDashboard" onclick="switchTab('dashboard')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-400 hover:text-slate-200 transition-all">
+                    <i class="fa-solid fa-list-check mr-1.5"></i>참가자 현황 (<span id="headerCount">0</span>)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full flex-grow">
+
+        <!-- TAB 1: CHECK-IN SECTION -->
+        <section id="tabCheckin" class="space-y-6">
+            
+            <!-- Quick Stat Banner -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                        <i class="fa-solid fa-users text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-slate-400">총 참가 인원</div>
+                        <div class="text-2xl font-extrabold text-white" id="statTotalCount">0명</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
+                        <i class="fa-solid fa-clock text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-slate-400">최근 완료 학번</div>
+                        <div class="text-2xl font-extrabold text-indigo-300" id="statRecentId">-</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 flex items-center space-x-4">
+                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-slate-400">중복 차단 모드</div>
+                        <div class="text-sm font-semibold text-amber-300 mt-1">실시간 자동 감지 중</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                <div class="max-w-md mx-auto text-center space-y-6">
+                    <div>
+                        <span class="inline-block px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-semibold mb-2">
+                            5자리 학번 입력
+                        </span>
+                        <h2 class="text-2xl font-bold text-white">학번을 입력해주세요</h2>
+                        <p class="text-xs text-slate-400 mt-1">예: 1학년 1반 1번 ➔ <span class="text-slate-200 font-mono font-bold">10101</span> (범위: 1~3학년, 01~10반, 01~35번)</p>
+                    </div>
+
+                    <!-- Input Box -->
+                    <form id="checkinForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="studentIdInput" 
+                                maxlength="5" 
+                                pattern="\d{5}" 
+                                placeholder="10101" 
+                                autocomplete="off" 
+                                autofocus
+                                oninput="onStudentInput(this)"
+                                class="w-full text-center text-4xl font-mono tracking-widest py-4 px-4 bg-slate-900 border-2 border-slate-700 rounded-2xl text-white focus:outline-none focus:border-indigo-500 transition-all shadow-inner placeholder:text-slate-600"
+                            >
+                            <button type="button" onclick="clearInput()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-2 text-lg">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            </button>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button 
+                            type="submit" 
+                            id="btnSubmit"
+                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-lg font-bold rounded-2xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2"
+                        >
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>중복 확인 및 참여하기</span>
+                        </button>
+                    </form>
+
+                    <!-- On-screen Keypad for Mobile/Tablet Convenience -->
+                    <div class="pt-2 border-t border-slate-700/60">
+                        <div class="text-xs text-slate-400 mb-3 font-medium">터치키패드 (키보드 직접 입력 가능)</div>
+                        <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+                            <button type="button" onclick="appendDigit('1')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">1</button>
+                            <button type="button" onclick="appendDigit('2')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">2</button>
+                            <button type="button" onclick="appendDigit('3')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">3</button>
+                            <button type="button" onclick="appendDigit('4')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">4</button>
+                            <button type="button" onclick="appendDigit('5')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">5</button>
+                            <button type="button" onclick="appendDigit('6')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">6</button>
+                            <button type="button" onclick="appendDigit('7')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">7</button>
+                            <button type="button" onclick="appendDigit('8')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">8</button>
+                            <button type="button" onclick="appendDigit('9')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">9</button>
+                            <button type="button" onclick="clearInput()" class="py-3 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 font-bold rounded-xl text-sm active:scale-95 transition-transform">지우기</button>
+                            <button type="button" onclick="appendDigit('0')" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-white font-bold rounded-xl text-lg active:scale-95 transition-transform">0</button>
+                            <button type="button" onclick="deleteLastDigit()" class="py-3 bg-slate-700/70 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-lg active:scale-95 transition-transform"><i class="fa-solid fa-delete-left"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Display Box -->
+            <div id="resultBox" class="hidden rounded-2xl p-6 text-center shadow-xl transition-all border">
+                <div id="resultIcon" class="text-5xl mb-3"></div>
+                <h3 id="resultTitle" class="text-2xl font-bold mb-1"></h3>
+                <p id="resultDesc" class="text-sm opacity-90 mb-4"></p>
+                <div id="resultDetails" class="text-xs font-mono bg-black/20 p-2.5 rounded-lg inline-block"></div>
+            </div>
+
+        </section>
+
+        <!-- TAB 2: DASHBOARD & MANAGEMENT SECTION -->
+        <section id="tabDashboard" class="hidden space-y-6">
+            
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                <div class="relative flex-grow max-w-md">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        oninput="renderTable()" 
+                        placeholder="학번 검색 (예: 101...)" 
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                    >
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportToCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-all shadow flex items-center space-x-1.5">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>CSV 다운로드</span>
+                    </button>
+                    <button onclick="openResetModal()" class="px-3.5 py-2 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold rounded-xl transition-all flex items-center space-x-1.5">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>전체 초기화</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900/80 border-b border-slate-700 text-xs font-semibold text-slate-400">
+                                <th class="py-3.5 px-4 text-center w-16">번호</th>
+                                <th class="py-3.5 px-4">학번</th>
+                                <th class="py-3.5 px-4">참여 시간</th>
+                                <th class="py-3.5 px-4 text-center">상태</th>
+                                <th class="py-3.5 px-4 text-right w-24">작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="participantTableBody" class="divide-y divide-slate-700/50 text-sm">
+                            <!-- JS populated -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyState" class="py-12 text-center text-slate-400 space-y-2">
+                    <i class="fa-solid fa-user-slash text-3xl opacity-50"></i>
+                    <p class="text-sm">등록된 학번이 없습니다.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800/40 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        <p>행사 중복 참여 방지 학번 등록 시스템 &bull; 모든 데이터는 브라우저 메모리에 저장됩니다.</p>
+    </footer>
+
+    <!-- Custom Modal for Delete Confirmation -->
+    <div id="resetModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div class="w-12 h-12 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">전체 명단 초기화</h3>
+            <p class="text-xs text-slate-300">모든 학번 참가 기록이 완전히 삭제됩니다. 진행하시겠습니까?</p>
+            <div class="flex space-x-3 pt-2">
+                <button onclick="closeResetModal()" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-xl text-xs">취소</button>
+                <button onclick="confirmResetAll()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl text-xs">삭제하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center space-x-3">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMsg" class="text-sm font-medium"></span>
+    </div>
+
+    <script>
+        // State storage for participants
+        // Array of objects: { studentId: "10101", timestamp: "2026-10-06 14:00:12" }
+        let participants = [];
+
+        // Web Audio API for sound feedback
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'success') {
+                    // High cheerful chime
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'duplicate') {
+                    // Low error buzz
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(160, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.05);
+                }
+            } catch (e) {
+                console.log("Audio not supported or blocked");
+            }
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            updateStats();
+            renderTable();
+        };
+
+        // Tab Switching
+        function switchTab(tabName) {
+            const checkinTab = document.getElementById('tabCheckin');
+            const dashboardTab = document.getElementById('tabDashboard');
+            const btnCheckin = document.getElementById('btnTabCheckin');
+            const btnDashboard = document.getElementById('btnTabDashboard');
+
+            if (tabName === 'checkin') {
+                checkinTab.classList.remove('hidden');
+                dashboardTab.classList.add('hidden');
+                
+                btnCheckin.className = "px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 text-white transition-all shadow";
+                btnDashboard.className = "px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-400 hover:text-slate-200 transition-all";
+                document.getElementById('studentIdInput').focus();
+            } else {
+                checkinTab.classList.add('hidden');
+                dashboardTab.classList.remove('hidden');
+
+                btnDashboard.className = "px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 text-white transition-all shadow";
+                btnCheckin.className = "px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-400 hover:text-slate-200 transition-all";
+                renderTable();
+            }
+        }
+
+        function onStudentInput(input) {
+            // Remove non-digits
+            input.value = input.value.replace(/\D/g, '');
+            if (input.value.length === 5) {
+                // Auto submit when 5 digits are entered
+                processCheckin(input.value);
+            }
+        }
+
+        function appendDigit(digit) {
+            playSound('click');
+            const input = document.getElementById('studentIdInput');
+            if (input.value.length < 5) {
+                input.value += digit;
+                if (input.value.length === 5) {
+                    processCheckin(input.value);
+                }
+            }
+        }
+
+        function deleteLastDigit() {
+            playSound('click');
+            const input = document.getElementById('studentIdInput');
+            input.value = input.value.slice(0, -1);
+        }
+
+        function clearInput() {
+            playSound('click');
+            const input = document.getElementById('studentIdInput');
+            input.value = '';
+            input.focus();
+            hideResult();
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('studentIdInput');
+            processCheckin(input.value);
+        }
+
+        // Core logic: Check for duplicate and register
+        function processCheckin(idStr) {
+            const inputElem = document.getElementById('studentIdInput');
+
+            // Format validation
+            if (!/^\d{5}$/.test(idStr)) {
+                showResult('invalid', '올바른 학번 형식이 아닙니다', '학번은 5자리 숫자로 입력해 주세요. (예: 10101)', idStr);
+                playSound('duplicate');
+                return;
+            }
+
+            // Detailed Range Validation (학년: 1~3, 반: 1~10, 번호: 1~35)
+            const grade = parseInt(idStr.substring(0, 1), 10);
+            const classNum = parseInt(idStr.substring(1, 3), 10);
+            const studentNum = parseInt(idStr.substring(3, 5), 10);
+
+            if (grade < 1 || grade > 3) {
+                showResult('invalid', '잘못된 학년입니다', '학년은 1학년부터 3학년까지 입력할 수 있습니다.', idStr);
+                playSound('duplicate');
+                return;
+            }
+
+            if (classNum < 1 || classNum > 10) {
+                showResult('invalid', '잘못된 반입니다', '반은 01반부터 10반까지 입력할 수 있습니다. (예: 01 ~ 10)', idStr);
+                playSound('duplicate');
+                return;
+            }
+
+            if (studentNum < 1 || studentNum > 35) {
+                showResult('invalid', '잘못된 번호입니다', '번호는 01번부터 35번까지 입력할 수 있습니다. (예: 01 ~ 35)', idStr);
+                playSound('duplicate');
+                return;
+            }
+
+            // Check duplicate
+            const existing = participants.find(p => p.studentId === idStr);
+
+            if (existing) {
+                // DUPLICATE DETECTED
+                showResult('duplicate', '중복 참여입니다!', `학번 ${idStr}번은 이미 참여 등록되었습니다.`, `최초 참여 시간: ${existing.timestamp}`);
+                playSound('duplicate');
+                
+                // Shake effect on input
+                inputElem.classList.add('animate-fail');
+                setTimeout(() => inputElem.classList.remove('animate-fail'), 400);
+
+            } else {
+                // SUCCESS: FIRST TIME PARTICIPATION
+                const now = new Date();
+                const timeString = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+                participants.unshift({
+                    studentId: idStr,
+                    timestamp: timeString
+                });
+
+                showResult('success', '정상 처리되었습니다!', `학번 ${idStr}번의 참여가 확인되었습니다.`, `등록 완료 시간: ${timeString}`);
+                playSound('success');
+
+                // Bounce effect
+                inputElem.classList.add('animate-success');
+                setTimeout(() => inputElem.classList.remove('animate-success'), 400);
+
+                // Clear input field for next user
+                setTimeout(() => {
+                    inputElem.value = '';
+                }, 800);
+
+                updateStats();
+            }
+        }
+
+        function showResult(type, title, desc, detailText) {
+            const box = document.getElementById('resultBox');
+            const icon = document.getElementById('resultIcon');
+            const titleElem = document.getElementById('resultTitle');
+            const descElem = document.getElementById('resultDesc');
+            const detailElem = document.getElementById('resultDetails');
+
+            box.classList.remove('hidden', 'bg-emerald-950/80', 'border-emerald-500/50', 'text-emerald-200',
+                               'bg-rose-950/80', 'border-rose-500/50', 'text-rose-200',
+                               'bg-amber-950/80', 'border-amber-500/50', 'text-amber-200');
+
+            if (type === 'success') {
+                box.classList.add('bg-emerald-950/80', 'border-emerald-500/50', 'text-emerald-200');
+                icon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            } else if (type === 'duplicate') {
+                box.classList.add('bg-rose-950/80', 'border-rose-500/50', 'text-rose-200');
+                icon.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-400"></i>';
+            } else {
+                box.classList.add('bg-amber-950/80', 'border-amber-500/50', 'text-amber-200');
+                icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i>';
+            }
+
+            titleElem.textContent = title;
+            descElem.textContent = desc;
+            detailElem.textContent = detailText;
+        }
+
+        function hideResult() {
+            document.getElementById('resultBox').classList.add('hidden');
+        }
+
+        function updateStats() {
+            const count = participants.length;
+            document.getElementById('statTotalCount').textContent = `${count}명`;
+            document.getElementById('headerCount').textContent = count;
+            
+            if (count > 0) {
+                document.getElementById('statRecentId').textContent = `${participants[0].studentId}`;
+            } else {
+                document.getElementById('statRecentId').textContent = '-';
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('participantTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const query = document.getElementById('searchInput').value.trim();
+
+            const filtered = participants.filter(p => p.studentId.includes(query));
+
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-700/30 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center text-xs font-mono text-slate-400">${participants.length - index}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-indigo-300 text-base">${item.studentId}</td>
+                    <td class="py-3 px-4 text-xs font-mono text-slate-300">${item.timestamp}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            참여 완료
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="removeSingleParticipant('${item.studentId}')" class="text-xs text-rose-400 hover:text-rose-300 p-1.5 hover:bg-rose-500/10 rounded-lg transition-colors">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function removeSingleParticipant(studentId) {
+            participants = participants.filter(p => p.studentId !== studentId);
+            updateStats();
+            renderTable();
+            showToast(`학번 ${studentId}번이 삭제되었습니다.`);
+        }
+
+        function openResetModal() {
+            document.getElementById('resetModal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.add('hidden');
+        }
+
+        function confirmResetAll() {
+            participants = [];
+            updateStats();
+            renderTable();
+            closeResetModal();
+            hideResult();
+            showToast('전체 목록이 초기화되었습니다.');
+        }
+
+        function exportToCSV() {
+            if (participants.length === 0) {
+                showToast('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            let csvContent = "\uFEFF순번,학번,참여일시\n";
+            participants.slice().reverse().forEach((p, idx) => {
+                csvContent += `${idx + 1},${p.studentId},${p.timestamp}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `행사참가자명단_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('CSV 파일 다운로드가 시작되었습니다.');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.textContent = message;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
